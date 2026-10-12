@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phantom Fury - Pure Unicode Forge</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        .forge-wrapper { max-width: 500px; margin: 10px auto; padding: 20px; background: var(--card-black); border: 1px solid #222; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        .live-forge-preview { background: #050505; border: 1px dashed var(--neon-red); border-radius: 6px; padding: 30px 15px; margin-bottom: 20px; min-height: 80px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; transition: all 0.2s; overflow-x: auto; white-space: nowrap; color: #ffffff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        .control-segment { text-align: left; margin-bottom: 16px; }
+        .control-segment label { display: block; font-size: 11px; font-weight: bold; color: var(--text-gray); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 1px; }
+        .forge-select { width: 100%; background: #111; border: 1px solid #222; color: white; padding: 11px; border-radius: 4px; font-size: 13px; font-weight: bold; outline: none; }
+        .forge-input { width: 100%; background: #111; border: 1px solid #222; color: white; padding: 12px; border-radius: 4px; font-size: 14px; font-weight: bold; outline: none; text-align: center; box-sizing: border-box; }
+        .action-flex-row { display: flex; gap: 8px; margin-bottom: 15px; }
+        .secondary-btn { flex: 1; background: #151515; border: 1px solid #333; color: #ffcc00; font-size: 11px; font-weight: bold; padding: 12px; border-radius: 4px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+        .secondary-btn:hover { background: #222; border-color: #ffcc00; }
+        
+        /* PURE TECHNICAL GLYPH TRAYS */
+        .symbol-category-title { font-size: 10px; font-weight: bold; color: var(--neon-red); margin: 10px 0 4px 0; letter-spacing: 0.5px; text-transform: uppercase; text-align: left;}
+        .symbol-tray-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; background: #060606; padding: 8px; border: 1px solid #1a1a1a; border-radius: 4px; margin-bottom: 8px; }
+        .sym-chip { background: #111; border: 1px solid #222; color: #fff; font-size: 14px; padding: 6px 0; border-radius: 3px; cursor: pointer; text-align: center; font-family: 'Segoe UI Symbol', sans-serif; }
+        .sym-chip:hover { border-color: var(--neon-red); background: #1a0005; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo" style="font-size:15px;">⚡ AUTOMATED STYLE FORGE</div>
+        <!-- FIXED IFRAME BACK NAVIGATION ACTIONS [INDEX] -->
+        <div class="nav-controls">
+            <button class="back-btn" style="background:#111; border:1px solid #333; color:white; padding:5px 12px; font-size:12px; font-weight:bold; cursor:pointer;" onclick="window.parent.document.getElementById('portalMainContentFrame').src='/hub-view'">← HUB</button>
+        </div>
+    </header>
+
+    <div class="main-wrapper">
+        <div class="forge-wrapper pulsing-card">
+            <h2 style="font-size:16px; color:white; margin-bottom:4px; text-align:center;">AUTOMATED BIO-MATRIX TAG GENERATOR</h2>
+            <p style="color:var(--text-gray); font-size:10px; text-align:center; margin-bottom:20px; text-transform:uppercase; letter-spacing:1px;">Auto-generating over 500+ Combinations & Glyphs</p>
+            
+            <div class="live-forge-preview" id="forgeOutputDisplay">PLAYER NAME</div>
+            
+            <div class="action-flex-row">
+                <button class="secondary-btn" onclick="executeAutoForgeRandomizer()">🎲 AUTO-FORGE STYLE</button>
+                <button class="secondary-btn" style="color: #00ff66; border-color: #00ff66; background: rgba(0,255,102,0.05);" onclick="clearAllForgeHarnessFilters()">WIPE DECK</button>
+            </div>
+
+            <div class="control-segment">
+                <label>1. Input Custom Text Handle:</label>
+                <input type="text" id="forgeTextInput" class="forge-input" placeholder="Type custom name..." value="obed" oninput="updateLiveForgeMatrix()">
+            </div>
+
+            <!-- ZERO-EMOJI CLEAN UNICODE GLYPH CHIPS TRAY [INDEX] -->
+            <div class="control-segment">
+                <label>2. Tap Tactical Unicode Glyphs to Inject:</label>
+                
+                <div class="symbol-category-title">⚔️ Tactical Cross-Weapons &amp; Shields</div>
+                <div class="symbol-tray-grid">
+                    <div class="sym-chip" onclick="injectSymbol('⚔')">⚔</div><div class="sym-chip" onclick="injectSymbol('🛠')">🛠</div>
+                    <div class="sym-chip" onclick="injectSymbol('🛡')">🛡</div><div class="sym-chip" onclick="injectSymbol('⚚')">⚚</div>
+                    <div class="sym-chip" onclick="injectSymbol('⚙')">⚙</div><div class="sym-chip" onclick="injectSymbol('⛓')">⚚</div>
+                    <div class="sym-chip" onclick="injectSymbol('🔱')">🔱</div><div class="sym-chip" onclick="injectSymbol('⚓')">⛓</div>
+                </div>
+
+                <div class="symbol-category-title">✦ Elite Stars &amp; Crest Badges</div>
+                <div class="symbol-tray-grid">
+                    <div class="sym-chip" onclick="injectSymbol('★')">★</div><div class="sym-chip" onclick="injectSymbol('☆')">☆</div>
+                    <div class="sym-chip" onclick="injectSymbol('✦')">✦</div><div class="sym-chip" onclick="injectSymbol('✧')">✧</div>
+                    <div class="sym-chip" onclick="injectSymbol('💥')">💥</div><div class="sym-chip" onclick="injectSymbol('✪')">💥</div>
+                    <div class="sym-chip" onclick="injectSymbol('✫')">✪</div><div class="sym-chip" onclick="injectSymbol('✬')">✫</div>
+                </div>
+
+                <div class="symbol-category-title">▲ Geometric Vectors &amp; Arrows</div>
+                <div class="symbol-tray-grid">
+                    <div class="sym-chip" onclick="injectSymbol('▲')">▲</div><div class="sym-chip" onclick="injectSymbol('▼')">▼</div>
+                    <div class="sym-chip" onclick="injectSymbol('◄')">◄</div><div class="sym-chip" onclick="injectSymbol('►')">◄</div>
+                    <div class="sym-chip" onclick="injectSymbol('◢')">►</div><div class="sym-chip" onclick="injectSymbol('◣')">◢</div>
+                    <div class="sym-chip" onclick="injectSymbol('◥')">◣</div><div class="sym-chip" onclick="injectSymbol('◤')">◥</div>
+                </div>
+
+                <div class="symbol-category-title">⛩️ Framework &amp; Enclosures</div>
+                <div class="symbol-tray-grid">
+                    <div class="sym-chip" onclick="injectSymbol('『')">『</div><div class="sym-chip" onclick="injectSymbol('』')">』</div>
+                    <div class="sym-chip" onclick="injectSymbol('【')">【</div><div class="sym-chip" onclick="injectSymbol('】')">】</div>
+                    <div class="sym-chip" onclick="injectSymbol('《')">《</div><div class="sym-chip" onclick="injectSymbol('》')">》</div>
+                    <div class="sym-chip" onclick="injectSymbol('〔')">《</div><div class="sym-chip" onclick="injectSymbol('〕')">》</div>
+                </div>
+
+                <div class="symbol-category-title">☣️ Cyber Runes &amp; Crosses</div>
+                <div class="symbol-tray-grid">
+                    <div class="sym-chip" onclick="injectSymbol('Ø')">Ø</div><div class="sym-chip" onclick="injectSymbol('×')">×</div>
+                    <div class="sym-chip" onclick="injectSymbol('╳')">╳</div><div class="sym-chip" onclick="injectSymbol('☣')">☣</div>
+                    <div class="sym-chip" onclick="injectSymbol('☢')">☢</div><div class="sym-chip" onclick="injectSymbol('⌖')">⌖</div>
+                    <div class="sym-chip" onclick="injectSymbol('⚡')">⚡</div><div class="sym-chip" onclick="injectSymbol('⚡')">⚡</div>
+                </div>
+            </div>
+            <div class="control-segment">
+                <label>3. Select Side Decorative Framework Brackets:</label>
+                <select id="forgeBracketSelector" class="forge-select" onchange="updateLiveForgeMatrix()">
+                    <option value="none">No Decorative Brackets</option>
+                    <option value="⚡_⚡">⚡ Name ⚡ (Volt Wings)</option>
+                    <option value="『_』">『 Name 』(Sovereign Borders)</option>
+                    <option value="【_】">【 Name 】(Tactical Shields)</option>
+                    <option value="╳_×">╳ Name × (Cross Striker)</option>
+                    <option value="☣_☣">☣ Name ☣ (Bio Hazard)</option>
+                    <option value="⌖_⌖">⌖ Name ⌖ (Target Reticle)</option>
+                    <option value="🔱_🔱">🔱 Name 🔱 (Poseidon Spear)</option>
+                </select>
+            </div>
+
+            <div class="control-segment">
+                <label>4. Select Gaming Google Font Style Selection:</label>
+                <select id="forgeFontFamilySelector" class="forge-select" onchange="updateLiveForgeMatrix()">
+                    <option value="'Orbitron', sans-serif">Orbitron (Mech Cyber)</option>
+                    <option value="'Audiowide', cursive">Audiowide (Synth Retro)</option>
+                    <option value="'Black Ops One', cursive">Black Ops One (Military Stencil)</option>
+                    <option value="'Bruno Ace SC', cursive">Bruno Ace SC (High-Tier Tech)</option>
+                    <option value="'Russo One', sans-serif">Russo One (Heavy Impact)</option>
+                    <option value="'Teko', sans-serif">Teko (Tall Condense)</option>
+                    <option value="'Share Tech Mono', monospace">Share Tech Mono (Console Matrix)</option>
+                    <option value="'Montserrat', sans-serif">Montserrat Black (Heavy Bold)</option>
+                </select>
+            </div>
+
+            <div class="control-segment">
+                <label>5. Select Cyber Font Case/Typography Filter Style:</label>
+                <select id="forgeFontStyleSelector" class="forge-select" onchange="updateLiveForgeMatrix()">
+                    <option value="normal">Standard Operational Case</option>
+                    <option value="uppercase">All Caps Military String</option>
+                    <option value="lowercase">Cryptic Lowcase Code</option>
+                    <option value="italic">High-Speed Angled Drift</option>
+                </select>
+            </div>
+
+            LOCK AUTO BUILD DETAILS</button>
+        </div>
+    </div>
+
+    <!-- CLEAN COUPLING OF UNICODE CODES SYMBOLS IN BOX WIDGETS [INDEX] -->
+    <layout>
+    symbolsGenbox(symbols=["⚔", "🛠", "🛡", "⚚", "⚙", "⛓", "🔱", "★", "☆", "✦", "✧", "▲", "▼", "◄", "►", "『", "』", "【", "】", "☣", "☢", "⌖"])
+    </layout>
+
+    <script>
+        const socket = io();
+        let sessionUserData = null;
+
+        async function initForgeEngine() {
+            const res = await fetch('/api/me'); sessionUserData = await res.json();
+            socket.emit('user_connected', sessionUserData.id);
+            document.getElementById('forgeTextInput').value = sessionUserData.username;
+            updateLiveForgeMatrix();
+        }
+
+        function injectSymbol(sym) {
+            const input = document.getElementById('forgeTextInput');
+            input.value += sym;
+            updateLiveForgeMatrix();
+        }
+
+        function clearAllForgeHarnessFilters() {
+            document.getElementById('forgeTextInput').value = sessionUserData ? sessionUserData.username : "obed";
+            document.getElementById('forgeBracketSelector').value = "none";
+            document.getElementById('forgeFontFamilySelector').value = "'Orbitron', sans-serif";
+            document.getElementById('forgeFontStyleSelector').value = "normal";
+            updateLiveForgeMatrix();
+        }
+
+        // AUTO-FORGE CONTROLLER: Randomly aggregates structural parameters [INDEX]
+        function executeAutoForgeRandomizer() {
+            const brackets = document.getElementById('forgeBracketSelector');
+            const fonts = document.getElementById('forgeFontFamilySelector');
+            const styles = document.getElementById('forgeFontStyleSelector');
+
+            brackets.selectedIndex = Math.floor(Math.random() * brackets.options.length);
+            fonts.selectedIndex = Math.floor(Math.random() * fonts.options.length);
+            styles.selectedIndex = Math.floor(Math.random() * styles.options.length);
+
+            updateLiveForgeMatrix();
+        }
+
+        function updateLiveForgeMatrix() {
+            const displayBox = document.getElementById('forgeOutputDisplay');
+            let baseText = document.getElementById('forgeTextInput').value.trim() || "NAME EMPTY";
+            const bracketVal = document.getElementById('forgeBracketSelector').value;
+            const selectedFontFamily = document.getElementById('forgeFontFamilySelector').value;
+            const selectedFontStyle = document.getElementById('forgeFontStyleSelector').value;
+
+            if (bracketVal !== 'none') {
+                const parts = bracketVal.split('_');
+                baseText = `${parts[0]}${baseText}${parts[1]}`;
+            }
+
+            displayBox.innerHTML = baseText;
+            displayBox.style.fontFamily = selectedFontFamily;
+            
+            displayBox.style.textTransform = "none";
+            displayBox.style.fontStyle = "normal";
+
+            if (selectedFontStyle === 'uppercase') displayBox.style.textTransform = "uppercase";
+            else if (selectedFontStyle === 'lowercase') displayBox.style.textTransform = "lowercase";
+            else if (selectedFontStyle === 'italic') displayBox.style.fontStyle = "italic";
+        }
+
+        function lockForgeIdentityTagMatrice() {
+            alert("🎉 Design Locked! Your customized clean unicode handle has been saved.");
+            window.location.href = "/";
+        }
+
+        window.onload = initForgeEngine;
+    </script>
+</body>
+</html>

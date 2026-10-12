@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phantom Fury - Home Hub</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        .popup-menu { display: none !important; position: absolute; background: #0d0d0d !important; border: 2px solid var(--neon-red) !important; border-radius: 6px; z-index: 99999 !important; box-shadow: 0 0 15px rgba(255, 0, 60, 0.4) !important; padding: 15px; min-width: 200px; }
+        .popup-menu.show-popup { display: block !important; }
+        .popup-menu button { display: block !important; width: 100%; color: #ffffff !important; text-decoration: none !important; padding: 12px 10px !important; font-size: 13px !important; font-weight: bold !important; border-bottom: 1px solid #1a1a1a !important; text-transform: uppercase !important; background: none !important; text-align: left !important; cursor: pointer; }
+        .popup-menu button:hover { color: var(--neon-red) !important; background: #111111 !important; }
+        .pulsing-card { animation: neonCardPulse 4s infinite ease-in-out; will-change: border-color, box-shadow; margin-bottom: 20px; }
+        .discover-row { display: flex; align-items: center; justify-content: space-between; background: #0b0b0b; padding: 10px; border: 1px solid #1a1a1a; margin-top: 6px; border-radius: 4px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .online-dot { background: #00ff66; box-shadow: 0 0 6px #00ff66; }
+        .offline-dot { background: #444; }
+        .live-count-chip { background: rgba(0, 255, 102, 0.1); border: 1px solid #00ff66; color: #00ff66; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; text-shadow: 0 0 4px #00ff66; text-transform: uppercase; }
+        .tactical-header-tag { font-size: 13px; color: var(--neon-red); font-weight: 900; letter-spacing: 1.5px; margin-bottom: 10px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed #222; padding-bottom: 6px; }
+        .voice-card { background: #080808; border: 1px dashed #333; border-radius: 6px; padding: 15px; margin-bottom: 20px; text-align: left; }
+        .voice-btn { border: none; padding: 8px 16px; font-size: 11px; font-weight: bold; color: white; cursor: pointer; border-radius: 3px; text-transform: uppercase; }
+        .v-speaker { display: inline-block; background: #111; border: 1px solid #222; padding: 4px 10px; font-size: 11px; border-radius: 12px; color: #00ff66; font-weight: bold; }
+        .meta-bullet-list { list-style: none; padding-left: 0; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .meta-bullet-list li { font-size: 12px; color: #aaa; padding-left: 12px; border-left: 2px solid var(--neon-red); line-height: 1.5; }
+        .meta-bullet-list strong { color: #fff; }
+    </style>
+</head>
+<body>
+
+    <header style="top: inherit;">
+        <div class="logo">PHANTOM FURY</div>
+        <div class="nav-controls">
+            <button class="icon-btn" onclick="toggleMenu('notifPopup')">🔔<span id="notifDot" class="red-dot" style="display:none;"></span></button>
+            <button class="icon-btn" onclick="toggleMenu('hamburgerPopup')">☰</button>
+            <img id="myAvatar" src="/uploads/default.png" class="profile-img" onclick="toggleMenu('profilePopup')">
+        </div>
+
+        <div id="hamburgerPopup" class="popup-menu" style="top: 60px; right: 65px;">
+            <button onclick="switchPortalView('/chatroom-view')">🔴 Live Chatroom</button>
+            <button onclick="switchPortalView('/customizer-view')">⚡ Name Customizer</button>
+            <button onclick="switchPortalView('/showoff-view')">📸 Showoff Gallery</button>
+        </div>
+
+        <div id="notifPopup" class="popup-menu" style="top: 60px; right: 15px; width: 290px; max-height: 400px; overflow-y: auto;">
+            <h4 style="color: var(--neon-red); font-size:11px; border-bottom:1px solid #222; padding-bottom:4px; text-transform:uppercase;">📢 OPERATIONAL BROADCAST INTEL</h4>
+            <div id="notifList" style="display:flex; flex-direction:column; gap:6px; margin-top:8px;"></div>
+        </div>
+
+        <div id="profilePopup" class="popup-menu" style="top: 60px; right: 15px; min-width: 190px;">
+            <p id="profileName" style="font-weight: bold; border-bottom: 1px solid #222; padding-bottom:8px; color: white; font-size:13px; text-transform:uppercase;"></p>
+            <button id="adminPanelLink" style="display: none; color: var(--neon-red);" onclick="showAdminSection()">🛠️ Admin Desk</button>
+            <button onclick="document.getElementById('hiddenAvatarInput').click()">Change Picture</button>
+            <button onclick="window.parent.location.href='/api/logout'" style="color: #666;">Logout Session</button>
+        </div>
+    </header>
+
+    <input type="file" id="hiddenAvatarInput" style="display: none;" accept="image/*" onchange="executeAvatarUpload()">
+
+    <div class="main-wrapper">
+        
+        <!-- REAL-TIME COMPRESSED SQUAD VOICE PANEL -->
+        <div class="voice-card pulsing-card">
+            <div style="font-size: 12px; font-weight:bold; color:white; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
+                <span>🎙️ PHANTOM VOX COMM-NET FREQUENCY</span>
+                <span id="vStatusText" style="color:#444; font-size:10px; font-weight:bold;">CHANNEL OFFLINE</span>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <button id="joinVoiceBtn" class="voice-btn" style="background:#00ff66; color:black;" onclick="toggleVoiceLobbyConnection()">Connect to Vox</button>
+                <button id="muteVoiceBtn" class="voice-btn" style="background:#222; display:none;" onclick="toggleMicrophoneMuteState()">Mute Mic</button>
+            </div>
+            <div id="voiceSpeakersTray" style="display:flex; flex-wrap:wrap; gap:6px;">
+                <p style="color:#444; font-size:11px; font-style:italic; margin:0;">No tactical streams currently transmitting.</p>
+            </div>
+        </div>
+
+        <!-- ROSTER DIRECTORY WIDGET -->
+        <div class="pulsing-card" style="background: var(--card-black); padding: 15px; border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="color: var(--neon-red); font-size: 13px; margin-bottom: 0;">👥 ONLINE TEAM DIRECTORY</h3>
+                <span class="live-count-chip" id="liveFriendsCountTag">Online Squad: 0</span>
+            </div>
+            <input type="text" id="memberSearchInput" placeholder="Search teammate username..." oninput="filterGuildDiscoveryList()">
+            <div id="discoverTeammatesBox" style="max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top:8px;"></div>
+        </div>
+
+        <!-- EXTENSIVE ES-PORTS TACTICAL CARD DECKS -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="pulsing-card" style="border-left: 4px solid var(--neon-red); background: var(--card-black); padding: 15px; border-radius: 4px;">
+                <div class="tactical-header-tag">⚔️ THE RUSH META PHILOSOPHY</div>
+                <p style="font-size: 12px; color: #ccc; line-height: 1.6;">Phantom Fury does not play for placement points; we completely break enemy defense layouts in high-tier hot-drop sectors. Our operational doctrine relies entirely on extreme close-quarters aggression, synchronized grenade entries, and immediate cross-flanking pressure coordinates. Hesitation or picking loot during engagement breaks puts the team line at risk.</p>
+            </div>
+            
+            <div class="pulsing-card" style="border-left: 4px solid var(--neon-red); background: var(--card-black); padding: 15px; border-radius: 4px;">
+                <div class="tactical-header-tag">📐 DROP ZONE INTERCEPT MATRIX</div>
+                <p style="font-size: 12px; color: #ccc; line-height: 1.6;">Our core landing grids are locked. In **Bermuda**, we split 2-2 to seize Peak's high ground and Mill's staircases. In **Purgatory**, we establish defensive strongholds at Central and Brass. Every squad member must master dive-chute angle mechanics to touch down instantly before rival teams reach weapon caches.</p>
+            </div>
+            <div class="pulsing-card" style="border-left: 4px solid var(--neon-red); background: var(--card-black); padding: 15px; border-radius: 4px;">
+                <div class="tactical-header-tag">📦 SQUAD LOADOUT LOGISTICS SPECS</div>
+                <p style="font-size: 12px; color: #ccc; line-height: 1.6;">To secure balanced firepower across dual splits, loadouts must match specified class guidelines exactly:</p>
+                <ul class="meta-bullet-list">
+                    <li><strong>⚡ Primary Rushers:</strong> M1887 Devastator Shotgun paired with a high-capacity MAC10 or MP40 to tear through cover walls.</li>
+                    <li><strong>🎯 Support Anchor:</strong> Woodpecker Marksman Rifle combined with an AWM or M82B Sniper to provide high-damage tracking protection from distance vantage points.</li>
+                    <li><strong>🛡️ Grenadier Support:</strong> Flash-Freezes stacked with Frag Grenades. Must master precise cooked countdown throwing curves to breach compounds.</li>
+                </ul>
+            </div>
+
+            <div class="pulsing-card" style="border-left: 4px solid var(--neon-red); background: var(--card-black); padding: 15px; border-radius: 4px;">
+                <div class="tactical-header-tag">🏆 TOURNAMENT LOBBY RULES CODE</div>
+                <p style="font-size: 12px; color: #ccc; line-height: 1.6;">All roster combatants must maintain clear communication paths during end-zone shifts:</p>
+                <ul class="meta-bullet-list">
+                    <li><strong>🎙️ Comms Protocol:</strong> Keep voice channels clear of background clutter. Call out enemy locations using clear compass heading numbers and exact health damage tags.</li>
+                    <li><strong>🕒 Check-In Window:</strong> Log directly into the synchronized vox lobby exactly 30 minutes before custom room tournament match keys unlock.</li>
+                    <li><strong>⚠️ Roster Discipline:</strong> Deviating from assigned drops or failing to anchor flanking lines results in immediate tournament bench re-assignments.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="adminPanel" style="display: none; margin-top: 15px; padding: 15px; background: #0c0c0c; border: 1px dashed var(--neon-red); border-radius: 6px;">
+            <h3 style="font-size: 14px; color: var(--neon-red); margin-bottom: 15px;">🛠️ Admin Control Desk</h3>
+            <div style="margin-bottom: 20px; display:flex; flex-direction:column; gap:10px;">
+                <button class="primary-btn" id="chatToggleBtn" onclick="toggleGeneralChatRoomState()">Loading Lock status...</button>
+                <button class="primary-btn" style="background:#444; border:1px solid #666; font-size:11px;" onclick="adminWipeGeneralChatroomLogs()">🗑️ CLEAR PUBLIC ROOM HISTORY</button>
+                <input type="text" id="announceText" placeholder="Broadcast notification text...">
+                <button class="primary-btn" style="padding: 8px;" onclick="sendAnnouncement()">BROADCAST SCROLL TICKER</button>
+            </div>
+            <h4 style="font-size: 11px; color:white; text-transform:uppercase; margin-bottom:6px;">Active Live Broadcast Records:</h4>
+            <div id="adminAnnounceList" style="background: #050505; border: 1px solid #111; max-height: 130px; overflow-y: auto; padding: 5px; margin-bottom: 15px;"></div>
+            
+            <h4 style="font-size: 11px; color:white; text-transform:uppercase; margin-bottom:6px;">Guild Members Directory:</h4>
+            <div id="adminUserList" style="background: #050505; border: 1px solid #1a1a1a; max-height: 180px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io(); let myData = null; let completeGuildCache = [];
+        let isConnectedToVoice = false; let isMicrophoneMuted = false;
+        let localAudioStreamPointer = null; let scriptProcessorNode = null; let audioContextInstance = null;
+
+        function toggleMenu(id) {
+            if (window.event) window.event.stopPropagation();
+            const panel = document.getElementById(id); const isOpen = panel.classList.contains('show-popup');
+            document.querySelectorAll('.popup-menu').forEach(p => p.classList.remove('show-popup'));
+            if (!isOpen) {
+                panel.classList.add('show-popup');
+                if (id === 'notifPopup') { const badgeDot = document.getElementById('notifDot'); if (badgeDot) badgeDot.style.display = 'none'; }
+            }
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.icon-btn') && !e.target.closest('.profile-img') && !e.target.closest('.popup-menu')) {
+                document.querySelectorAll('.popup-menu').forEach(panel => panel.classList.remove('show-popup'));
+            }
+        });
+
+        function switchPortalView(targetUrl) {
+            window.parent.document.getElementById('portalMainContentFrame').src = targetUrl;
+            document.querySelectorAll('.popup-menu').forEach(panel => panel.classList.remove('show-popup'));
+        }
+
+        async function loadUserData() {
+            const res = await fetch('/api/me'); myData = await res.json();
+            document.getElementById('profileName').textContent = myData.username;
+            document.getElementById('myAvatar').src = myData.profile_pic || '/uploads/default.png';
+            if (myData.role && myData.role.toLowerCase() === 'admin') document.getElementById('adminPanelLink').style.display = 'block';
+            socket.emit('user_connected', myData.id); loadNotifications(); fetchGuildDiscoveryData(); initWebAudioOutputDecoder();
+        }
+        async function toggleVoiceLobbyConnection() {
+            const btn = document.getElementById('joinVoiceBtn'); const statusLabel = document.getElementById('vStatusText'); const muteBtn = document.getElementById('muteVoiceBtn');
+            if (!isConnectedToVoice) {
+                try {
+                    localAudioStreamPointer = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+                    audioContextInstance = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                    const source = audioContextInstance.createMediaStreamSource(localAudioStreamPointer);
+                    scriptProcessorNode = audioContextInstance.createScriptProcessor(8192, 1, 1);
+                    
+                    scriptProcessorNode.onaudioprocess = (e) => {
+                        if (isMicrophoneMuted) return;
+                        const buffer = e.inputBuffer.getChannelData(0); const compression = new Float32Array(buffer.length);
+                        for (let i = 0; i < buffer.length; i++) { compression[i] = buffer[i]; }
+                        socket.emit('stream_audio_packet', { audioData: compression.buffer });
+                    };
+                    source.connect(scriptProcessorNode); scriptProcessorNode.connect(audioContextInstance.destination);
+                    socket.emit('join_voice_channel'); isConnectedToVoice = true;
+                    btn.textContent = "Disconnect"; btn.style.background = "var(--neon-red)";
+                    muteBtn.style.display = "inline-block"; statusLabel.textContent = "CONNECTED LIVE"; statusLabel.style.color = "#00ff66";
+                } catch (err) { alert("Microphone access blocked."); }
+            } else { exitActiveVoiceLobbyChannels(); }
+        }
+
+        function toggleMicrophoneMuteState() {
+            const muteBtn = document.getElementById('muteVoiceBtn'); isMicrophoneMuted = !isMicrophoneMuted;
+            muteBtn.textContent = isMicrophoneMuted ? "Unmute Mic" : "Mute Mic";
+            muteBtn.style.background = isMicrophoneMuted ? "#ffaa00" : "#222";
+        }
+
+        function exitActiveVoiceLobbyChannels() {
+            const btn = document.getElementById('joinVoiceBtn'); const statusLabel = document.getElementById('vStatusText'); const muteBtn = document.getElementById('muteVoiceBtn');
+            if (scriptProcessorNode) scriptProcessorNode.disconnect();
+            if (localAudioStreamPointer) localAudioStreamPointer.getTracks().forEach(track => track.stop());
+            if (audioContextInstance) audioContextInstance.close();
+            socket.emit('leave_voice_channel'); isConnectedToVoice = false; isMicrophoneMuted = false;
+            btn.textContent = "Connect to Vox"; btn.style.background = "#00ff66"; muteBtn.style.display = "none";
+            statusLabel.textContent = "CHANNEL OFFLINE"; statusLabel.style.color = "#444";
+        }
+
+        function initWebAudioOutputDecoder() {
+            let context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            socket.on('receive_audio_packet', (payload) => {
+                const float32 = new Float32Array(payload.audioData);
+                let audioBuf = context.createBuffer(1, float32.length, 16000); audioBuf.getChannelData(0).set(float32);
+                let source = context.createBufferSource(); source.buffer = audioBuf; source.connect(context.destination); source.start();
+            });
+        }
+
+        socket.on('voice_users_updated', (list) => {
+            const container = document.getElementById('voiceSpeakersTray');
+            container.innerHTML = list.length ? '' : '<p style="color:#444; font-size:11px; font-style:italic; margin:0;">No tactical streams currently transmitting.</p>';
+            list.forEach(u => { container.innerHTML += `<span class="v-speaker">🔊 COMMS: ${u.username}</span>`; });
+        });
+
+        // FIXED DATA INDEX TARGET AVATAR FORGE ENGINES [INDEX]
+        async function executeAvatarUpload() {
+            const inputCtrl = document.getElementById('hiddenAvatarInput');
+            if (!inputCtrl || !inputCtrl.files || !inputCtrl.files.length) return;
+            
+            const uploadForm = new FormData();
+            // CHUNK FIX: Explicitly target index 0 to package the raw selected image file [INDEX]
+            uploadForm.append('avatarFile', inputCtrl.files[0]);
+            
+            const res = await fetch('/api/profile/upload-avatar', { 
+                method: 'POST', 
+                body: uploadForm 
+            });
+            
+            if (res.ok) {
+                // Instantly re-synchronize views seamlessly upon server change confirmation [INDEX]
+                window.location.reload();
+            } else {
+                const errData = await res.json();
+                alert("🚨 UPLOAD FAILURE: " + (errData.error || "Could not save custom graphic."));
+            }
+        }
+
+        async function fetchGuildDiscoveryData() {
+            const res = await fetch('/api/users/discover'); completeGuildCache = await res.json();
+            const onlineCount = completeGuildCache.filter(u => u.status === 'online').length;
+            document.getElementById('liveFriendsCountTag').textContent = `Online Squad: ${onlineCount}`; filterGuildDiscoveryList();
+        }
+
+        function filterGuildDiscoveryList() {
+            const query = document.getElementById('memberSearchInput').value.toLowerCase();
+            const box = document.getElementById('discoverTeammatesBox'); box.innerHTML = '';
+            let matches = completeGuildCache.filter(u => u.username.toLowerCase().includes(query));
+            if(!matches.length) { box.innerHTML = '<p style="color:#444; font-size:12px; padding:5px;">No players found.</p>'; return; }
+            matches.forEach(u => {
+                const dot = (u.status === 'online') ? 'online-dot' : 'offline-dot';
+                box.innerHTML += `<div class="discover-row"><span><span class="status-dot ${dot}"></span><strong>${u.username}</strong></span></div>`;
+            });
+        }
+
+        async function loadNotifications() {
+            const res = await fetch('/api/notifications'); const data = await res.json();
+            const list = document.getElementById('notifList'); list.innerHTML = data.announcements.length ? '' : '<p style="color:#333; font-size:11px; padding:5px;">No announcements recorded.</p>';
+            data.announcements.forEach(a => { list.innerHTML += `<div style="padding:8px; background:#111; border-radius:4px; font-size:12px; color:white; border-left:2px solid var(--neon-red);">🔥 ${a.message}</div>`; });
+        }
+
+        async function toggleGeneralChatRoomState() { const res = await fetch('/api/admin/toggle-chat', { method: 'POST' }); const result = await res.json(); updateChatButtonUI(result.open); }
+        async function adminWipeGeneralChatroomLogs() { if (confirm("Wipe chat history?")) { const res = await fetch('/api/admin/clear-chat', { method: 'POST' }); if (res.ok) alert('Cleared!'); } }
+        async function checkCurrentChatStatus() { const res = await fetch('/api/system/chat-status'); const result = await res.json(); updateChatButtonUI(result.open); }
+        function updateChatButtonUI(isOpen) { const btn = document.getElementById('chatToggleBtn'); if (btn) btn.textContent = isOpen ? "🔒 LOCK GENERAL CHATROOM" : "🔓 UNLOCK GENERAL CHATROOM"; }
+
+        async function loadAdminAnnouncements() {
+            const res = await fetch('/api/notifications'); const data = await res.json();
+            const container = document.getElementById('adminAnnounceList'); container.innerHTML = data.announcements.length ? '' : '<p style="color:#444; font-size:12px; padding:5px;">No broadcasts.</p>';
+            data.announcements.forEach(a => {
+                container.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px; border-bottom:1px solid #151515; font-size:12px;"><span style="color:#ccc;">${a.message}</span><button style="background:var(--neon-red); border:none; color:white; font-size:10px; padding:2px 6px; cursor:pointer;" onclick="deleteAnnouncement(${a.id})">REMOVE</button></div>`;
+            });
+        }
+
+        async function deleteAnnouncement(id) { if (confirm("Delete?")) { await fetch(`/api/admin/announcement/${id}`, { method: 'DELETE' }); showAdminSection(); loadNotifications(); } }
+        // REINFORCED SECURITY GATE ACTION DESK PROTECTOR
+        async function showAdminSection() {
+            // CRITICAL HARD-LOCK: Total rejection check to prevent unauthorized layout visual bypasses
+            if (!myData || !myData.role || myData.role.toLowerCase() !== 'admin') {
+                alert("🚨 SECURITY EXPLOIT ALERT: Unauthorized deployment action logged. Access Denied.");
+                document.getElementById('adminPanel').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('adminPanel').style.display = 'block'; 
+            checkCurrentChatStatus(); loadAdminAnnouncements();
+            
+            const res = await fetch('/api/admin/users'); const users = await res.json();
+            const container = document.getElementById('adminUserList'); container.innerHTML = '';
+            users.forEach(u => {
+                container.innerHTML += `<div style="border-bottom: 1px solid #1a1a1a; padding: 10px; font-size:13px; text-align:left;"><strong>${u.username}</strong> (${u.role}) <button style="background:var(--neon-red); border:none; color:white; font-size:10px; float:right; padding:2px 6px; cursor:pointer;" onclick="removeGuildUser(${u.id})">DELETE</button></div>`;
+            });
+            document.querySelectorAll('.popup-menu').forEach(p => p.classList.remove('show-popup'));
+        }
+
+        async function removeGuildUser(id) { if (confirm("Delete user?")) { await fetch(`/api/admin/user/${id}`, { method: 'DELETE' }); showAdminSection(); fetchGuildDiscoveryData(); } }
+        async function deleteAnnouncement(id) { if (confirm("Delete?")) { await fetch(`/api/admin/announcement/${id}`, { method: 'DELETE' }); showAdminSection(); loadNotifications(); } }
+        async function sendAnnouncement() { const msg = document.getElementById('announceText').value.trim(); if (!msg) return; await fetch('/api/admin/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) }); document.getElementById('announceText').value = ''; showAdminSection(); loadNotifications(); }
+        async function toggleGeneralChatRoomState() { const res = await fetch('/api/admin/toggle-chat', { method: 'POST' }); const result = await res.json(); updateChatButtonUI(result.open); }
+        async function adminWipeGeneralChatroomLogs() { if (confirm("Wipe chat history?")) { const res = await fetch('/api/admin/clear-chat', { method: 'POST' }); if (res.ok) alert('Wiped!'); } }
+        async function checkCurrentChatStatus() { const res = await fetch('/api/system/chat-status'); const result = await res.json(); updateChatButtonUI(result.open); }
+        function updateChatButtonUI(isOpen) { const btn = document.getElementById('chatToggleBtn'); if (btn) btn.textContent = isOpen ? "🔒 LOCK GENERAL CHATROOM" : "🔓 UNLOCK GENERAL CHATROOM"; }
+
+        socket.on('new_announcement', () => { const dot = document.getElementById('notifDot'); if(dot) dot.style.display='block'; loadNotifications(); });
+        socket.on('announcement_deleted', () => loadNotifications());
+        socket.on('status_change', () => fetchGuildDiscoveryData());
+        window.onload = loadUserData;
+    </script>
+</body>
+</html>

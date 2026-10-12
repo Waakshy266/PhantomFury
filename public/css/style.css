@@ -1,0 +1,176 @@
+/* IMPORTING CURATED ESPORTS TYPOGRAPHIES FOR THE CUSTOMIZER FORGE MATRIX */
+@import url('https://googleapis.com');
+
+:root {
+    --neon-red: #ff003c;
+    --card-black: #0d0d0d;
+    --bg-dark: #050505;
+    --text-white: #ffffff;
+    --text-gray: #888888;
+    --neon-glow: 0 0 10px rgba(255, 0, 60, 0.4), 0 0 20px rgba(255, 0, 60, 0.2);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-white);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    /* OVERFLOW MUST ALLOW ROLLING TRACKS FOR SCROLLING UP/DOWN */
+    overflow-x: hidden;
+    overflow-y: auto !important;
+}
+header {
+    background: #000000;
+    border-bottom: 2px solid var(--neon-red);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 2000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+}
+
+.logo {
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--text-white);
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-white);
+    font-size: 18px;
+    cursor: pointer;
+    position: relative;
+    padding: 4px;
+}
+
+.profile-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--neon-red);
+    object-fit: cover;
+    cursor: pointer;
+}
+.main-wrapper {
+    flex: 1;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px 15px 120px 15px; /* Heavy bottom padding lets you scroll far past mobile gesture bars */
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.pulsing-card {
+    background: var(--card-black);
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+/* CARDS WITH DECORATIVE ACCENT LEFT BORDERS */
+.pulsing-card[style*="border-left"] {
+    border-left: 4px solid var(--neon-red) !important;
+}
+
+h1, h2, h3, h4 {
+    letter-spacing: 1px;
+}
+
+p {
+    line-height: 1.6; /* Un-cramps dense blocks of text rules */
+    font-size: 13px;
+    color: var(--text-gray);
+}
+
+input[type="text"], input[type="password"], select {
+    width: 100%;
+    background: #111111;
+    border: 1px solid #222222;
+    color: var(--text-white);
+    padding: 12px 15px;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+    margin-top: 5px;
+}
+
+input:focus, select:focus {
+    border-color: var(--neon-red);
+    box-shadow: 0 0 5px rgba(255, 0, 60, 0.3);
+}
+
+.primary-btn {
+    width: 100%;
+    background: var(--neon-red);
+    color: var(--text-white);
+    border: none;
+    padding: 12px;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    margin-top: 15px;
+    box-shadow: 0 0 10px rgba(255, 0, 60, 0.4);
+}
+
+.primary-btn:active {
+    transform: scale(0.98);
+}
+
+.popup-menu a {
+    display: block;
+    color: var(--text-white);
+    text-decoration: none;
+    padding: 10px 5px;
+    font-size: 13px;
+    font-weight: bold;
+    border-bottom: 1px solid #111;
+}
+
+.popup-menu a:last-child {
+    border-bottom: none;
+}
+
+.red-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background: var(--neon-red);
+    border-radius: 50%;
+    display: none;
+}
+
+@keyframes neonCardPulse {
+    0%, 100% { border-color: #1a1a1a; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    50% { border-color: rgba(255, 0, 60, 0.3); box-shadow: 0 4px 20px rgba(255, 0, 60, 0.1); }
+}

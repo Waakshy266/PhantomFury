@@ -1,0 +1,121 @@
+{
+  "users": [
+    {
+      "id": 1791283035198,
+      "username": "obed",
+      "password": "$2b$10$Y4OcTOHjbMNmP6vuIBUyc.SailMI/OIffvfzhtPASweR6u3PtT/2q",
+      "role": "admin",
+      "profile_pic": "/uploads/avatar-1791283035198.jpg"
+    },
+    {
+      "id": 1791624237735,
+      "username": "Kelly ",
+      "password": "$2b$10$oe6DK1UG4Su8SHcRFre/Tunlae7Q81oWS5Kq0CPOwt8v/yFxueoWu",
+      "role": "user",
+      "profile_pic": "/uploads/default.png"
+    },
+    {
+      "id": 1791627813659,
+      "username": "PH KING",
+      "password": "$2b$10$tVjQd.VZ/15AAvWenNrPQ.ubUoT1BZ8O/Glm3gs4I01zPRqteSsii",
+      "role": "admin",
+      "profile_pic": "/uploads/default.png"
+    },
+    {
+      "id": 1791628455195,
+      "username": "unknown",
+      "password": "$2b$10$f/FSWey17MujWPFwv.dU1uhVptUuNaaOzSk7o6lnyyIH31aUYjgfO",
+      "role": "user",
+      "profile_pic": "/uploads/default.png"
+    },
+    {
+      "id": 1791630794089,
+      "username": "Yawskaller",
+      "password": "$2b$10$ozlrZ6kSm1z3uzQWLUHNg./mk7zHZsB7KBUk8U/m5.9KVPKTRh3ea",
+      "role": "user",
+      "profile_pic": "/uploads/default.png"
+    },
+    {
+      "id": 1791642635976,
+      "username": "Haha",
+      "password": "$2b$10$Eq5qHMOPz6k.Sbb4oKO1iuETHnGcDWMmxdIOK6uVD20kArJanlxOO",
+      "role": "user",
+      "profile_pic": "/uploads/default.png"
+    },
+    {
+      "id": 1791642796603,
+      "username": "G5",
+      "password": "$2b$10$QWSznDIIc0TPh.GldsAGreroiDg/5VUt8GJ.U4mAZ96921Ixnqlty",
+      "role": "user",
+      "profile_pic": "/uploads/default.png"
+    },
+    {
+      "id": 1791643079092,
+      "username": "Harry",
+      "password": "$2b$10$6Sac4t5k.HLs0VfTkrlSGOnbhW48BiQcovyXao1qQcOozq6fYo0Ja",
+      "role": "user",
+      "profile_pic": "/uploads/default.png"
+    }
+  ],
+  "messages": [
+    {
+      "id": 1791642718091,
+      "sender_id": 1791642635976,
+      "room_type": "general",
+      "message": "Hehe",
+      "timestamp": "2026-10-10T14:31:58.091Z"
+    },
+    {
+      "id": 1791642782815,
+      "sender_id": 1791283035198,
+      "room_type": "general",
+      "message": "🤘🤘🤘",
+      "timestamp": "2026-10-10T14:33:02.815Z"
+    }
+  ],
+  "friend_requests": [
+    {
+      "id": 1791293740643,
+      "sender_id": 1791283035198,
+      "receiver_id": 1791293445384,
+      "status": "pending"
+    },
+    {
+      "id": 1791296371389,
+      "sender_id": 1791296319722,
+      "receiver_id": 1791283035198,
+      "status": "accepted"
+    },
+    {
+      "id": 1791430827546,
+      "sender_id": 1791283035198,
+      "receiver_id": 1791430690414,
+      "status": "pending"
+    }
+  ],
+  "announcements": [],
+  "posts": [
+    {
+      "id": 1791319788349,
+      "user_id": 1791283035198,
+      "file_path": "/uploads/showoff-1791319784168.jpg",
+      "file_type": "image",
+      "likes": 2,
+      "views": 7,
+      "timestamp": "2026-10-06T20:49:48.349Z"
+    }
+  ],
+  "comments": [
+    {
+      "id": 1791323036830,
+      "post_id": 1791319788349,
+      "user_id": 1791283035198,
+      "comment_text": "Wow",
+      "timestamp": "2026-10-06T21:43:56.831Z"
+    }
+  ],
+  "system_settings": {
+    "general_chat_open": "true",
+    "showoff_upload_open": "true"
+  }
+}

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phantom Fury - Live Chatroom</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden !important; background: #050505; }
+        .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 75px); height: calc(100svh - 75px); width: 100%; position: absolute; top:0; left:0; box-sizing: border-box; }
+        .top-action-bar { background: #0c0c0c; border-bottom: 2px solid var(--neon-red); padding: 12px 15px; color: white; font-weight: bold; font-size: 11px; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .log-box { flex: 1 !important; overflow-y: auto !important; padding: 15px; display: flex; flex-direction: column; gap: 14px; background: #080808; width: 100%; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
+        .bubble-msg { display: flex; align-items: flex-start; gap: 10px; width: 100%; }
+        .avatar-wrap { display: flex; flex-direction: column; align-items: center; min-width: 55px; text-align: center; }
+        .avatar-chat { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--neon-red); object-fit: cover; }
+        .chat-username { font-size: 11px; color: var(--text-gray); margin-top: 3px; font-weight: bold; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .body-msg { flex: 1; background: #111111; padding: 12px; border-radius: 6px; border-left: 3px solid var(--neon-red); font-size: 13px; color: white; word-break: break-word; line-height: 1.5; }
+        .input-bar-zone { display: flex !important; gap: 8px; padding: 12px; background: #000000 !important; border-top: 2px solid #111; width: 100%; box-sizing: border-box; flex-shrink: 0 !important; }
+        .overlay-screen { display: flex; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:999999; justify-content:center; align-items:center; padding:20px; box-sizing: border-box; }
+        .rules-card { background: #0d0d0d; border: 2px solid var(--neon-red); padding: 20px; border-radius: 8px; text-align: center; width: 100%; max-width: 310px; box-shadow: var(--neon-glow); }
+    </style>
+</head>
+<body>
+
+    <div class="chat-wrap">
+        <div class="top-action-bar">
+            <span>📡 SQUAD LIVE OPERATIONS RADAR FREQUENCY</span>
+            <button style="background: #111; border: 1px solid #333; color: white; padding: 5px 12px; font-size: 11px; border-radius: 3px; cursor:pointer; font-weight:bold;" onclick="window.parent.document.getElementById('portalMainContentFrame').src='/hub-view'">← HUB</button>
+        </div>
+        
+        <div class="log-box" id="msgLogs"></div>
+        
+        <div class="input-bar-zone" id="inputDock">
+            <input type="text" id="strInput" placeholder="Type combat messages..." autocomplete="off" style="margin-bottom:0; flex: 1; height:40px; background:#111; color:white; border:1px solid #222; padding:0 10px; border-radius:4px;">
+            <button class="primary-btn" style="width:80px; padding:0; height:40px; margin-top:0;" onclick="handleSendMessageSubmit()">SEND</button>
+        </div>
+    </div>
+
+    <div class="overlay-screen" id="rulesOverlay">
+        <div class="rules-card">
+            <h3 style="color:var(--neon-red); font-size:14px; margin-bottom:12px; letter-spacing:1px;">GROUND OPERATIONS PROTOCOL</h3>
+            <p style="color:var(--text-gray); font-size:12px; line-height:1.6; margin-bottom:20px; text-align:left;">
+                1. Toxicity, slurs, and chat room spamming are forbidden.<br>
+                2. Roster placement strategies remain confidential.<br>
+                3. Admin authority actions are final.
+            </p>
+            <button class="primary-btn" style="margin-top:0;" onclick="enterRoomAfterRulesApproval()">I ACCEPT DIRECTIVES</button>
+        </div>
+    </div>
+    <script>
+        const socket = io(); let myProfileData = null;
+
+        async function initRoom() {
+            const res = await fetch('/api/me'); myProfileData = await res.json();
+            socket.emit('user_connected', myProfileData.id);
+            
+            // SECURITY PRE-CHECK: If an admin already locked the chatroom, bounce users out instantly upon page load
+            const statusRes = await fetch('/api/system/chat-status');
+            const statusResult = await statusRes.json();
+            if (statusResult.open === false && (!myProfileData.role || myProfileData.role.toLowerCase() !== 'admin')) {
+                window.parent.document.getElementById('portalMainContentFrame').src = '/hub-view';
+                alert('🔒 SYSTEM NOTICE: The General Chatroom is currently locked down for maintenance operations.');
+            }
+        }
+
+        function toggleDrawer() { const dn = document.getElementById('sideNav'); dn.style.display = (dn.style.display === 'flex') ? 'none' : 'flex'; }
+        function triggerGeneralChatroomGateCheck() { document.getElementById('sideNav').style.display = 'none'; document.getElementById('rulesOverlay').style.display = 'flex'; }
+        async function enterRoomAfterRulesApproval() {
+            // DOUBLE LOCK VALIDATOR: Prevent users from bypassing locked gates via delayed rules approval clicks
+            const statusRes = await fetch('/api/system/chat-status');
+            const statusResult = await statusRes.json();
+            if (statusResult.open === false && (!myProfileData.role || myProfileData.role.toLowerCase() !== 'admin')) {
+                document.getElementById('rulesOverlay').style.display = 'none';
+                window.parent.document.getElementById('portalMainContentFrame').src = '/hub-view';
+                alert('🔒 OPERATIONAL LOCK: The room was locked down while you were viewing the protocol directives.');
+                return;
+            }
+
+            document.getElementById('rulesOverlay').style.display = 'none';
+            document.getElementById('inputDock').style.display = 'flex';
+            
+            const res = await fetch('/api/chatroom/history'); const history = await res.json();
+            const logs = document.getElementById('msgLogs');
+            logs.innerHTML = `<p style="color:var(--neon-red); font-size:11px; text-align:center; margin-bottom:10px;">🔴 PUBLIC GENERAL OPERATIONS ROOM CHAT ACTIVE</p>`;
+            history.forEach(m => renderIncomingMessage(m)); scrollLogsToBottom();
+        }
+
+        function handleSendMessageSubmit() {
+            const inp = document.getElementById('strInput'); const text = inp.value.trim(); if (!text) return;
+            socket.emit('send_public_msg', { senderId: myProfileData.id, username: myProfileData.username, profilePic: myProfileData.profile_pic, role: myProfileData.role, message: text });
+            inp.value = '';
+        }
+
+        function renderIncomingMessage(data) {
+            const logs = document.getElementById('msgLogs');
+            logs.innerHTML += `<div class="bubble-msg"><div class="avatar-wrap"><img src="${data.profile_pic || '/uploads/default.png'}" class="avatar-chat"><span class="chat-username">${data.username}</span></div><div class="body-msg">${data.message}</div></div>`;
+        }
+
+        socket.on('receive_public_msg', (data) => { renderIncomingMessage(data); scrollLogsToBottom(); });
+        
+        // TARGETED STRING MATCHING CHATROOM INTERCEPTOR REAL-TIME ASSIGNMENT HOOK
+        socket.on('force_kick_locked', (payload) => {
+            if (payload.statusState === "false" && (!myProfileData || !myProfileData.role || myProfileData.role.toLowerCase() !== 'admin')) {
+                window.parent.document.getElementById('portalMainContentFrame').src = '/hub-view';
+                alert(payload.message || '🔒 The General Chatroom has been locked down by the Administrator.');
+            }
+        });
+
+        function scrollLogsToBottom() { const l = document.getElementById('msgLogs'); l.scrollTop = l.scrollHeight; }
+        window.onload = initRoom;
+    </script>
+</body>
+</html>

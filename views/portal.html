@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phantom Fury - Portal Hub</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        /* LOCK CANVAS STRICTLY TO MOBILE PHYSICAL VIEWS USING SVH */
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            height: 100vh; 
+            height: 100svh; 
+            width: 100vw; 
+            overflow: hidden; 
+            background: #050505; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .master-portal-audio-deck { 
+            background: #080808; 
+            border-bottom: 2px solid var(--neon-red); 
+            padding: 10px 15px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); 
+            z-index: 99999; 
+            width: 100%; 
+            box-sizing: border-box; 
+            flex-shrink: 0;
+        }
+        .portal-content-frame { 
+            flex: 1; 
+            border: none; 
+            width: 100%; 
+            background: #050505; 
+            display: block; 
+        }
+        .req-action-btn { border: none; padding: 6px 12px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div class="master-portal-audio-deck">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="font-size: 10px; color: #ffcc00; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">📻 GLOBAL COMMAND NET BROADCASTER</div>
+            <span id="playerTrackIndexLabel" style="color: var(--neon-red); font-size: 9px; font-weight: bold; text-transform: uppercase;">TRACK [1 / 1]</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap;">
+            <div style="background: #000; border: 1px dashed #222; padding: 6px 10px; border-radius: 4px; flex: 1; min-width: 180px; text-align: left;">
+                <div id="playerCurrentTrackTitle" style="font-size: 11px; color: #00ff66; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">⚡ MATRIX FETCHING MOUNTED FILES...</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="adminAudioControlsDeck" style="display: none; gap: 4px;">
+                    <button class="req-action-btn" style="background: #111; border: 1px solid #333;" onclick="handlePlaylistPrevTrack()">⏮</button>
+                    <button id="masterAudioPlayBtn" class="req-action-btn" style="background: var(--neon-red);" onclick="togglePlaylistPlaybackState()">▶ PLAY</button>
+                    <button class="req-action-btn" style="background: #111; border: 1px solid #333;" onclick="handlePlaylistNextTrack()">⏭</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 9px; color: #666; font-weight: bold;">VOL:</span>
+                    <input type="range" id="masterAudioVolumeSlider" min="0" max="1" step="0.05" value="0.4" style="margin-top:0; width: 65px; height: 3px;" oninput="handlePlaylistVolumeThrottle(this.value)">
+                </div>
+            </div>
+        </div>
+        <audio id="phantomCoreAudioNode" onended="handlePlaylistNextTrack()"></audio>
+    </div>
+
+    <iframe src="/hub-view" id="portalMainContentFrame" class="portal-content-frame"></iframe>
+
+    <script>
+        const socket = io();
+        let myProfile = null; let tacticalPlaylistMatrix = [];
+        let activeTrackIndexPointer = 0; let isAudioTrackCurrentlyPlaying = false;
+
+        async function initPortalShell() {
+            const res = await fetch('/api/me'); myProfile = await res.json();
+            socket.emit('user_connected', myProfile.id);
+            if (myProfile.role && myProfile.role.toLowerCase() === 'admin') {
+                document.getElementById('adminAudioControlsDeck').style.display = 'flex';
+            }
+            fetchDynamicSystemPlaylist();
+        }
+
+        async function fetchDynamicSystemPlaylist() {
+            const res = await fetch('/api/music/playlist'); tacticalPlaylistMatrix = await res.json();
+            initTacticalSoundDeck();
+        }
+
+        function initTacticalSoundDeck() {
+            if(!tacticalPlaylistMatrix.length) return;
+            const audio = document.getElementById('phantomCoreAudioNode');
+            audio.src = tacticalPlaylistMatrix[activeTrackIndexPointer].file;
+            audio.volume = parseFloat(document.getElementById('masterAudioVolumeSlider').value);
+            document.getElementById('playerCurrentTrackTitle').textContent = tacticalPlaylistMatrix[activeTrackIndexPointer].title;
+            document.getElementById('playerTrackIndexLabel').textContent = `TRACK [${activeTrackIndexPointer + 1} / ${tacticalPlaylistMatrix.length}]`;
+        }
+
+        function togglePlaylistPlaybackState() {
+            const audioNode = document.getElementById('phantomCoreAudioNode');
+            isAudioTrackCurrentlyPlaying = (audioNode.paused || audioNode.ended);
+            executeLocalAudioNodeState();
+            socket.emit('admin_broadcast_media_state', { action: isAudioTrackCurrentlyPlaying ? 'play' : 'pause', trackIndex: activeTrackIndexPointer });
+        }
+
+        function handlePlaylistNextTrack() {
+            if(!tacticalPlaylistMatrix.length) return;
+            activeTrackIndexPointer = (activeTrackIndexPointer + 1) % tacticalPlaylistMatrix.length; executeLocalTrackSwapChange();
+            socket.emit('admin_broadcast_media_state', { action: 'track_change', trackIndex: activeTrackIndexPointer });
+        }
+
+        function handlePlaylistPrevTrack() {
+            if(!tacticalPlaylistMatrix.length) return;
+            activeTrackIndexPointer = (activeTrackIndexPointer - 1 + tacticalPlaylistMatrix.length) % tacticalPlaylistMatrix.length; executeLocalTrackSwapChange();
+            socket.emit('admin_broadcast_media_state', { action: 'track_change', trackIndex: activeTrackIndexPointer });
+        }
+
+        function executeLocalAudioNodeState() {
+            const audio = document.getElementById('phantomCoreAudioNode'); const playBtn = document.getElementById('masterAudioPlayBtn');
+            if (isAudioTrackCurrentlyPlaying) {
+                audio.play().catch(() => { isAudioTrackCurrentlyPlaying = false; });
+                if(playBtn) { playBtn.textContent = "❚❚ PAUSE"; playBtn.style.background = "#ffaa00"; }
+            } else {
+                audio.pause();
+                if(playBtn) { playBtn.textContent = "▶ PLAY"; playBtn.style.background = "var(--neon-red)"; }
+            }
+        }
+
+        function executeLocalTrackSwapChange() {
+            if(!tacticalPlaylistMatrix.length) return;
+            const audio = document.getElementById('phantomCoreAudioNode'); audio.src = tacticalPlaylistMatrix[activeTrackIndexPointer].file;
+            document.getElementById('playerCurrentTrackTitle').textContent = tacticalPlaylistMatrix[activeTrackIndexPointer].title;
+            document.getElementById('playerTrackIndexLabel').textContent = `TRACK [${activeTrackIndexPointer + 1} / ${tacticalPlaylistMatrix.length}]`;
+            if (isAudioTrackCurrentlyPlaying) audio.play().catch(() => {});
+        }
+
+        function handlePlaylistVolumeThrottle(v) { document.getElementById('phantomCoreAudioNode').volume = parseFloat(v); }
+
+        socket.on('receive_synchronized_media_state', (data) => {
+            if (myProfile && myProfile.role && myProfile.role.toLowerCase() === 'admin') return;
+            activeTrackIndexPointer = data.trackIndex;
+            if (data.action === 'play') { isAudioTrackCurrentlyPlaying = true; executeLocalTrackSwapChange(); }
+            else if (data.action === 'pause') { isAudioTrackCurrentlyPlaying = false; executeLocalAudioNodeState(); }
+            else if (data.action === 'track_change') { isAudioTrackCurrentlyPlaying = true; executeLocalTrackSwapChange(); }
+        });
+
+        window.onload = initPortalShell;
+    </script>
+</body>
+</html>

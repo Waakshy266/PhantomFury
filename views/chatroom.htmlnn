@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phantom Fury - Live Chatroom</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        /* SECURE ABSOLUTE MOBILE FLEX-BOX CONTROLLERS */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #050505; overflow: hidden; }
+        
+        /* LOCK CHAT STRUCTURE TO REASONABLE PORTAL SCREEN HEIGHTS */
+        .chat-wrap { display: flex; flex-direction: column; height: 100vh; height: 100svh; width: 100%; position: relative; box-sizing: border-box; }
+        .drawer-toggle-btn { background: #0c0c0c; border-bottom: 2px solid var(--neon-red); color: white; padding: 12px 15px; font-weight: bold; font-size: 12px; text-align: left; width: 100%; letter-spacing: 1px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-sizing: border-box; }
+        
+        .side-nav-bar { display: none; background: #0a0a0a; padding: 12px; border-bottom: 2px solid var(--neon-red); flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); flex-shrink: 0; }
+        .log-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 14px; background: #080808; width: 100%; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
+        
+        .bubble-msg { display: flex; align-items: flex-start; gap: 10px; width: 100%; }
+        .avatar-wrap { display: flex; flex-direction: column; align-items: center; min-width: 55px; text-align: center; }
+        .avatar-chat { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--neon-red); object-fit: cover; }
+        .chat-username { font-size: 11px; color: var(--text-gray); margin-top: 3px; font-weight: bold; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .body-msg { flex: 1; background: #111111; padding: 12px; border-radius: 6px; border-left: 3px solid var(--neon-red); font-size: 13px; color: white; word-break: break-word; line-height: 1.5; }
+        
+        /* HARD-FIXED REACHABLE LOWER DECK SLAM PANEL BUFFER */
+        .input-bar-zone { display: flex; gap: 8px; padding: 12px; background: #000000; border-top: 2px solid #111; width: 100%; box-sizing: border-box; flex-shrink: 0; }
+        
+        .friend-list-container { display: flex; flex-direction: column; gap: 6px; padding: 5px; background: #050505; border: 1px solid #111; margin-top: 5px; max-height: 140px; overflow-y: auto; }
+        .friend-row { display: flex; align-items: center; justify-content: space-between; background: #0d0d0d; padding: 8px; border-radius: 4px; border: 1px solid #1a1a1a; }
+        .friend-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .dot-online { background: #00ff66; box-shadow: 0 0 5px #00ff66; }
+        .dot-offline { background: #444; }
+        .voice-card { background: #0d0d0d; border: 1px dashed #222; border-radius: 4px; padding: 10px; margin-top: 5px; }
+        .voice-btn { border: none; padding: 6px 12px; font-size: 11px; font-weight: bold; color: white; cursor: pointer; border-radius: 3px; }
+        .v-speaker { display: inline-block; background: #151515; border: 1px solid #222; padding: 4px 8px; font-size: 11px; border-radius: 12px; color: #00ff66; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="chat-wrap">
+        <div class="drawer-toggle-btn" onclick="toggleDrawer()">
+            <span>☰ SELECTION CHANNELS DIRECTORY</span>
+            <button style="background: #111; border: 1px solid #333; color: white; padding: 5px 12px; font-size: 11px; border-radius: 3px;" onclick="window.parent.document.getElementById('portalMainContentFrame').src='/hub-view'; event.stopPropagation();">← HUB</button>
+        </div>
+        
+        <div id="sideNav" class="side-nav-bar">
+            <button style="background:#151515; color:white; border:1px solid #333; padding:10px; text-align:left; font-size:12px; font-weight:bold; cursor:pointer;" onclick="selectGeneralChat()">🔴 ENTER GENERAL PUBLIC ROOM</button>
+            <button style="background:#151515; color:var(--neon-red); border:1px solid #333; padding:10px; text-align:left; font-size:12px; font-weight:bold; margin-top:4px; cursor:pointer;" onclick="toggleFriendsDrawer()">👥 PRIVATE CHAT ROOMS ↓</button>
+            <div id="friendsListZone" class="friend-list-container" style="display: none;"></div>
+            
+            <div class="voice-card">
+                <div style="font-size: 11px; font-weight:bold; color:white; margin-bottom: 6px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🎙️ SQUAD VOICE COMM-NET</span>
+                    <span id="vStatusText" style="color:#444; font-size:10px; font-weight:bold;">OFFLINE</span>
+                </div>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <button id="joinVoiceBtn" class="voice-btn" style="background:#00ff66; color:black;" onclick="toggleVoiceLobbyConnection()">Join Channel</button>
+                    <button id="muteVoiceBtn" class="voice-btn" style="background:#333; display:none;" onclick="toggleMicrophoneMuteState()">Mute Mic</button>
+                </div>
+                <div id="voiceSpeakersTray" style="display:flex; flex-wrap:wrap; gap:4px;">
+                    <p style="color:#333; font-size:10px; font-style:italic;">No active speakers.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="log-box" id="msgLogs">
+            <p style="color:#555; font-size:12px; text-align:center; margin-top:60px; font-weight:bold; letter-spacing:0.5px; text-transform:uppercase;">🔴 ATTENTION SQUAD: EXPAND THE PANEL ABOVE AND SELECT AN OPERATIONS ENTRANCE CHANNEL.</p>
+        </div>
+        
+        <div class="input-bar-zone" id="inputDock" style="display: none;">
+            <input type="text" id="strInput" placeholder="Type combat messages..." autocomplete="off" style="margin-bottom:0; flex: 1; height:42px; background:#111; color:white; border:1px solid #222; padding:0 10px; border-radius:4px;">
+            <button class="primary-btn" style="width:80px; padding:0; height:42px; margin-top:0;" onclick="handleSendMessageSubmit()">SEND</button>
+        </div>
+    </div>
+    <script>
+        const socket = io(); let myProfileData = null;
+        let activeRoomType = 'none'; let activeFriendId = null; let unreadCounts = {}; 
+
+        let isConnectedToVoice = false; let isMicrophoneMuted = false;
+        let localAudioStreamPointer = null; let scriptProcessorNode = null; let audioContextInstance = null;
+
+        async function initRoom() {
+            const res = await fetch('/api/me'); myProfileData = await res.json();
+            socket.emit('user_connected', myProfileData.id); initWebAudioOutputDecoder();
+        }
+
+        function toggleDrawer() { const dn = document.getElementById('sideNav'); dn.style.display = (dn.style.display === 'flex') ? 'none' : 'flex'; }
+        function toggleFriendsDrawer() { const zone = document.getElementById('friendsListZone'); const isHidden = zone.style.display === 'none'; zone.style.display = isHidden ? 'flex' : 'none'; if (isHidden) renderFriendsSidebar(); }
+        
+        async function selectGeneralChat() {
+            document.getElementById('sideNav').style.display = 'none'; document.getElementById('inputDock').style.display = 'flex';
+            activeRoomType = 'general'; activeFriendId = null;
+            const res = await fetch('/api/chatroom/history'); const history = await res.json();
+            const logs = document.getElementById('msgLogs'); logs.innerHTML = `<p style="color:var(--neon-red); font-size:11px; text-align:center; margin-bottom:10px;">🔴 PUBLIC GENERAL OPERATIONS CHAT</p>`;
+            history.forEach(m => renderIncomingMessage(m)); scrollLogsToBottom();
+        }
+
+        async function toggleVoiceLobbyConnection() {
+            const btn = document.getElementById('joinVoiceBtn'); const statusLabel = document.getElementById('vStatusText'); const muteBtn = document.getElementById('muteVoiceBtn');
+            if (!isConnectedToVoice) {
+                try {
+                    localAudioStreamPointer = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+                    audioContextInstance = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                    const source = audioContextInstance.createMediaStreamSource(localAudioStreamPointer);
+                    scriptProcessorNode = audioContextInstance.createScriptProcessor(8192, 1, 1);
+                    
+                    scriptProcessorNode.onaudioprocess = (e) => {
+                        if (isMicrophoneMuted) return;
+                        const buffer = e.inputBuffer.getChannelData(0); const compression = new Float32Array(buffer.length);
+                        for (let i = 0; i < buffer.length; i++) { compression[i] = buffer[i]; }
+                        socket.emit('stream_audio_packet', { audioData: compression.buffer });
+                    };
+                    source.connect(scriptProcessorNode); scriptProcessorNode.connect(audioContextInstance.destination);
+                    socket.emit('join_voice_channel'); isConnectedToVoice = true;
+                    btn.textContent = "Leave Channel"; btn.style.background = "var(--neon-red)";
+                    muteBtn.style.display = "inline-block"; statusLabel.textContent = "ONLINE FEED"; statusLabel.style.color = "#00ff66";
+                } catch (err) { alert("Microphone access denied."); }
+            } else { exitActiveVoiceLobbyChannels(); }
+        }
+
+        function toggleMicrophoneMuteState() {
+            const muteBtn = document.getElementById('muteVoiceBtn'); isMicrophoneMuted = !isMicrophoneMuted;
+            muteBtn.textContent = isMicrophoneMuted ? "Unmute" : "Mute Mic";
+            muteBtn.style.background = isMicrophoneMuted ? "#ffaa00" : "#333";
+        }
+
+        function exitActiveVoiceLobbyChannels() {
+            const btn = document.getElementById('joinVoiceBtn'); const statusLabel = document.getElementById('vStatusText'); const muteBtn = document.getElementById('muteVoiceBtn');
+            if (scriptProcessorNode) scriptProcessorNode.disconnect();
+            if (localAudioStreamPointer) localAudioStreamPointer.getTracks().forEach(track => track.stop());
+            if (audioContextInstance) audioContextInstance.close();
+            socket.emit('leave_voice_channel'); isConnectedToVoice = false; isMicrophoneMuted = false;
+            btn.textContent = "Join Channel"; btn.style.background = "#00ff66"; muteBtn.style.display = "none";
+            statusLabel.textContent = "OFFLINE"; statusLabel.style.color = "#444";
+        }
+
+        function initWebAudioOutputDecoder() {
+            let context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            socket.on('receive_audio_packet', (payload) => {
+                const float32 = new Float32Array(payload.audioData);
+                let audioBuf = context.createBuffer(1, float32.length, 16000); audioBuf.getChannelData(0).set(float32);
+                let source = context.createBufferSource(); source.buffer = audioBuf; source.connect(context.destination); source.start();
+            });
+        }
+
+        socket.on('voice_users_updated', (list) => {
+            const container = document.getElementById('voiceSpeakersTray');
+            container.innerHTML = list.length ? '' : '<p style="color:#333; font-size:10px; font-style:italic;">No active speakers.</p>';
+            list.forEach(u => { container.innerHTML += `<span class="v-speaker">🔊 ${u.username}</span>`; });
+        });
+
+        async function renderFriendsSidebar() {
+            const res = await fetch('/api/friends/list'); const friends = await res.json();
+            const container = document.getElementById('friendsListZone'); container.innerHTML = friends.length ? '' : '<p style="color:#444; font-size:11px; text-align:center; padding:10px;">Directory clear.</p>';
+            friends.forEach(f => {
+                const dot = (f.status === 'online') ? 'dot-online' : 'dot-offline';
+                container.innerHTML += `
+                    <div class="friend-row" onclick="enterPrivateFriendChat(${f.id}, '${f.username}')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:12px; color:white; display:flex; align-items:center; gap:6px;">
+                            <span class="friend-status-dot ${dot}"></span> <strong>${f.username}</strong>
+                        </span>
+                        <button style="background:none; border:none; color:var(--neon-red); font-size:11px; font-weight:bold;" onclick="executeDeleteFriend(event, ${f.id}, '${f.username}')">WIPE</button>
+                    </div>`;
+            });
+        }
+
+        async function executeDeleteFriend(e, friendId, friendName) {
+            e.stopPropagation();
+            if (confirm(`⚠️ Cut ties with ${friendName}?`)) {
+                await fetch(`/api/friends/remove/${friendId}`, { method: 'DELETE' }); renderFriendsSidebar();
+                if (activeRoomType === 'private' && activeFriendId === friendId) {
+                    document.getElementById('msgLogs').innerHTML = '<p style="color:#444; font-size:12px; text-align:center; margin-top:30px;">Secure channel collapsed.</p>';
+                    document.getElementById('inputDock').style.display = 'none'; activeRoomType = 'none';
+                }
+            }
+        }
+
+        async function enterPrivateFriendChat(friendId, friendName) {
+            document.getElementById('sideNav').style.display = 'none'; document.getElementById('inputDock').style.display = 'flex';
+            activeRoomType = 'private'; activeFriendId = parseInt(friendId);
+            const res = await fetch(`/api/friends/history/${activeFriendId}`); const history = await res.json();
+            const logs = document.getElementById('msgLogs'); logs.innerHTML = `<p style="color:#00ff66; font-size:11px; text-align:center; margin-bottom:10px;">🔒 SECURE P2P COMMS CHANNELS: ${friendName.toUpperCase()}</p>`;
+            history.forEach(m => renderIncomingMessage(m)); scrollLogsToBottom();
+        }
+
+        function handleSendMessageSubmit() {
+            const inp = document.getElementById('strInput'); const text = inp.value.trim(); if (!text) return;
+            if (activeRoomType === 'general') { socket.emit('send_public_msg', { senderId: myProfileData.id, username: myProfileData.username, profilePic: myProfileData.profile_pic, message: text }); }
+            else if (activeRoomType === 'private') { socket.emit('send_private_msg', { senderId: myProfileData.id, recipientId: activeFriendId, username: myProfileData.username, profilePic: myProfileData.profile_pic, message: text }); }
+            inp.value = '';
+        }
+
+        function renderIncomingMessage(data) {
+            const logs = document.getElementById('msgLogs');
+            logs.innerHTML += `<div class="bubble-msg"><div class="avatar-wrap"><img src="${data.profile_pic || '/uploads/default.png'}" class="avatar-chat"><span class="chat-username">${data.username}</span></div><div class="body-msg">${data.message}</div></div>`;
+        }
+
+        socket.on('receive_public_msg', (data) => { if (activeRoomType === 'general') { renderIncomingMessage(data); scrollLogsToBottom(); } });
+        socket.on('receive_private_msg', (data) => {
+            const sId = parseInt(data.sender_id); const rId = parseInt(data.recipient_id);
+            if (activeRoomType === 'private' && ((sId === myProfileData.id && rId === activeFriendId) || (sId === activeFriendId && rId === myProfileData.id))) { renderIncomingMessage(data); scrollLogsToBottom(); }
+        });
+
+        socket.on('force_kick_locked', () => { window.parent.document.getElementById('portalMainContentFrame').src='/hub-view'; alert('General Room Locked.'); });
+socket.on('status_change', () => { if (document.getElementById('friendsListZone').style.display === 'flex') renderFriendsSidebar(); });
+function scrollLogsToBottom() { const l = document.getElementById('msgLogs'); l.scrollTop = l.scrollHeight; }
+window.onload = initRoom;

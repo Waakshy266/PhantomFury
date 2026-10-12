@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phantom Fury - Showoff Gallery</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        .gallery-grid { display: flex; flex-direction: column; gap: 20px; width: 100%; margin-top: 15px; }
+        .post-card { background: var(--card-black); border: 1px solid #222; border-radius: 6px; overflow: hidden; position: relative; }
+        .post-header { display: flex; align-items: center; gap: 10px; padding: 10px 15px; border-bottom: 1px solid #1a1a1a; }
+        .post-media-box { width: 100%; position: relative; background: #000; display: flex; justify-content: center; align-items: center; }
+        .post-media-box img, .post-media-box video { width: 100%; max-height: 400px; object-fit: contain; display: block; }
+        .post-actions { display: flex; gap: 15px; padding: 12px 15px; border-top: 1px solid #1a1a1a; }
+        .action-btn { background: none; border: none; color: white; font-weight: bold; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .comments-section { background: #0b0b0b; padding: 12px 15px; border-top: 1px solid #151515; display: none; }
+        .comment-row { font-size: 12px; margin-bottom: 6px; color: #ccc; border-bottom: 1px dashed #151515; padding-bottom: 4px; text-align: left;}
+        .comment-input-dock { display: flex; gap: 8px; margin-top: 10px; }
+        .upload-panel { background: var(--card-black); border: 1px dashed var(--neon-red); padding: 15px; border-radius: 6px; margin-bottom: 25px; }
+        #commentAlertBanner { display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #141414; border: 2px solid var(--neon-red); padding: 12px 20px; border-radius: 6px; box-shadow: var(--neon-glow); z-index: 9999; width: 90%; max-width: 340px; animation: neonCardPulse 2s infinite ease-in-out; }
+        .admin-delete-post-btn { background: var(--neon-red); border: none; color: white; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 3px; cursor: pointer; margin-left: auto; box-shadow: 0 0 4px var(--neon-red); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo" style="font-size:15px;">📸 SHOWOFF GALLERY</div>
+        <!-- FIXED IFRAME BACK NAVIGATION ACTIONS [INDEX] -->
+        <div class="nav-controls">
+            <button class="back-btn" style="background:#111; border:1px solid #333; color:white; padding:5px 12px; font-size:12px; font-weight:bold; cursor:pointer;" onclick="window.parent.document.getElementById('portalMainContentFrame').src='/hub-view'">← HUB</button>
+        </div>
+    </header>
+
+    <div id="commentAlertBanner">
+        <div style="font-size: 13px; color: white; line-height: 1.4; text-align: left;">
+            💬 <strong id="alertCommentator" style="color: var(--neon-red);">Player</strong> commented:
+            <div id="alertCommentText" style="color: #bbb; font-style: italic; margin-top: 3px; font-size: 12px;"></div>
+        </div>
+    </div>
+    <div class="main-wrapper">
+        <div class="upload-panel">
+            <h3 style="color: var(--neon-red); font-size: 13px; margin-bottom: 10px;">📸 BROADCAST SQUAD MEDIA</h3>
+            <form id="mediaUploadForm" onsubmit="executeMediaFormSubmit(event)">
+                <input type="file" id="mediaFileField" accept="image/*,video/*" required style="margin-bottom:10px; color:white;">
+                <button type="submit" class="primary-btn" id="uploadBtnSubmit">UPLOAD TO TIMELINE</button>
+            </form>
+            <div id="uploadProgressContainer" style="display:none; margin-top:10px; background:#222; height:6px; border-radius:3px; overflow:hidden;">
+                <div id="uploadProgressBar" style="background:var(--neon-red); width:0%; height:100%; transition:width 0.1s;"></div>
+            </div>
+        </div>
+
+        <h2 style="font-size:14px; margin-bottom:15px; color:white; border-bottom:1px solid #222; padding-bottom:5px;">GUILD ACTIVITY FEED</h2>
+        <div class="gallery-grid" id="feedContainerZone"></div>
+    </div>
+    <script>
+        const socket = io();
+        let myProfileData = null;
+
+        async function initGallery() {
+            const res = await fetch('/api/me'); myProfileData = await res.json();
+            socket.emit('user_connected', myProfileData.id);
+            loadFeedPosts();
+        }
+
+        async function loadFeedPosts() {
+            const res = await fetch('/api/showoff/posts'); const posts = await res.json();
+            const container = document.getElementById('feedContainerZone'); container.innerHTML = '';
+            if(!posts.length) { container.innerHTML = '<p style="color:#444; font-size:12px; text-align:center; margin-top:20px;">No uploads yet.</p>'; return; }
+
+            const isAdmin = myProfileData.role && myProfileData.role.toLowerCase() === 'admin';
+
+            posts.reverse().forEach(p => {
+                let mediaTag = p.file_type === 'video' ? `<video src="${p.file_path}" controls loop></video>` : `<img src="${p.file_path}" loading="lazy">`;
+                let deleteBtnHTML = (isAdmin || p.user_id === myProfileData.id) ? `<button class="admin-delete-post-btn" onclick="executePostDeletion(${p.id})">Delete</button>` : '';
+
+                container.innerHTML += `
+                    <div class="post-card" id="post-${p.id}">
+                        <div class="post-header">
+                            <img src="${p.profile_pic}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; border:1px solid var(--neon-red);">
+                            <strong style="font-size:12px; color:white;">${p.username}</strong>
+                            ${deleteBtnHTML}
+                        </div>
+                        <div class="post-media-box" onclick="registerPostView(${p.id})">${mediaTag}</div>
+                        <div class="post-actions">
+                            <button class="action-btn" onclick="executePostLike(${p.id})">❤️ <span id="like-count-${p.id}">${p.likes}</span></button>
+                            <button class="action-btn" onclick="toggleCommentsDrawer(${p.id})">💬 Comment Feed</button>
+                            <span style="font-size:11px; color:#555; margin-left:auto; align-self:center;">👁️ ${p.views}</span>
+                        </div>
+                        <div class="comments-section" id="comment-box-${p.id}">
+                            <div id="comment-list-${p.id}"></div>
+                            <div class="comment-input-dock">
+                                <input type="text" id="new-comment-text-${p.id}" placeholder="Write tactical comment..." style="margin-bottom:0; font-size:12px; padding:6px 10px;">
+                                <button class="primary-btn" style="width:60px; padding:0; height:38px; font-size:11px;" onclick="submitPostComment(${p.id})">POST</button>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        async function executePostDeletion(postId) {
+            if (confirm("⚠️ Permanently purge this post from the cloud storage database?")) {
+                const res = await fetch(`/api/showoff/post/${postId}`, { method: 'DELETE' });
+                if (res.ok) { alert("Post removed."); loadFeedPosts(); }
+            }
+        }
+
+        async function executeMediaFormSubmit(e) {
+            e.preventDefault(); const fileCtrl = document.getElementById('mediaFileField'); if (!fileCtrl.files.length) return;
+            const payloadForm = new FormData(); payloadForm.append('mediaFile', fileCtrl.files[0]);
+            document.getElementById('uploadProgressContainer').style.display = 'block';
+            document.getElementById('uploadProgressBar').style.width = '0%';
+            document.getElementById('uploadBtnSubmit').disabled = true;
+
+            const ajaxRequest = new XMLHttpRequest(); ajaxRequest.open('POST', '/api/showoff/upload', true);
+            ajaxRequest.upload.onprogress = (progressEvent) => {
+                if (progressEvent.lengthComputable) {
+                    let percent = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+                    document.getElementById('uploadProgressBar').style.width = percent + '%';
+                }
+            };
+            ajaxRequest.onload = function() {
+                if (ajaxRequest.status === 200) {
+                    alert('🔥 Combat file uploaded successfully!');
+                    document.getElementById('mediaFileField').value = '';
+                    document.getElementById('uploadProgressContainer').style.display = 'none';
+                    document.getElementById('uploadBtnSubmit').disabled = false; loadFeedPosts();
+                } else { alert('Upload failed.'); document.getElementById('uploadProgressContainer').style.display = 'none'; document.getElementById('uploadBtnSubmit').disabled = false; }
+            };
+            ajaxRequest.send(payloadForm);
+        }
+
+        async function registerPostView(id) { await fetch(`/api/showoff/view/${id}`, { method: 'POST' }); }
+        async function executePostLike(id) { const res = await fetch(`/api/showoff/like/${id}`, { method: 'POST' }); if (res.ok) { let countEl = document.getElementById(`like-count-${id}`); countEl.textContent = parseInt(countEl.textContent) + 1; } }
+
+        async function toggleCommentsDrawer(id) {
+            const drawer = document.getElementById(`comment-box-${id}`);
+            const isHidden = window.getComputedStyle(drawer).display === 'none';
+            drawer.style.display = isHidden ? 'block' : 'none'; if (isHidden) fetchPostCommentsList(id);
+        }
+
+        async function fetchPostCommentsList(id) {
+            const res = await fetch(`/api/showoff/comments/${id}`); const comments = await res.json();
+            const list = document.getElementById(`comment-list-${id}`); list.innerHTML = comments.length ? '' : '<p style="color:#444; font-size:11px; font-style:italic; padding:5px 0;">No comments yet.</p>';
+            comments.forEach(c => { list.innerHTML += `<div class="comment-row"><strong style="color:var(--neon-red);">${c.username}:</strong> ${c.comment_text}</div>`; });
+        }
+
+        async function submitPostComment(id) {
+            const inp = document.getElementById(`new-comment-text-${id}`); const val = inp.value.trim(); if (!val) return;
+            const res = await fetch('/api/showoff/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: id, text: val }) });
+            if (res.ok) { inp.value = ''; fetchPostCommentsList(id); }
+        }
+
+        socket.on('receive_comment_notification', (data) => {
+            const activeDrawer = document.getElementById(`comment-box-${data.postId}`);
+            if (activeDrawer && window.getComputedStyle(activeDrawer).display === 'block') { fetchPostCommentsList(data.postId); }
+            if (data.commentatorName !== myProfileData.username) {
+                document.getElementById('alertCommentator').textContent = data.commentatorName;
+                document.getElementById('alertCommentText').textContent = `"${data.commentText}"`;
+                const banner = document.getElementById('commentAlertBanner'); banner.style.display = 'block';
+                setTimeout(() => { banner.style.display = 'none'; }, 5000);
+            }
+        });
+
+        socket.on('showoff_post_deleted', (deletedPostId) => { if (document.getElementById(`post-${deletedPostId}`)) loadFeedPosts(); });
+
+        window.onload = initGallery;
+    </script>
+</body>
+</html>
