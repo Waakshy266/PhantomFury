@@ -11,11 +11,12 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// --- FREE-TIER GIT REPOSITORY STORAGE ENGINE ---
+// --- FREE-TIER RECURSIVE REPOSITORY STORAGE MATRIX ---
 const dbDir = path.join(__dirname, 'database');
 const uploadDir = path.join(__dirname, 'public', 'uploads');
 const audioDir = path.join(__dirname, 'public', 'audio');
 
+// ENFORCE RECURSIVE LAYOUTS TO PREVENT ENOENT ERRORS ON GITHUB ENGINES
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true });
